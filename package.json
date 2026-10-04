@@ -14,6 +14,7 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^1.0.0",
     "ai": "^5.0.0",
     "express": "^5.2.1",
     "mineflayer": "^4.39.0",

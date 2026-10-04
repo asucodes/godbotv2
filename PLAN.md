@@ -19,42 +19,48 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Phase 1 — Foundation (world + bodies)
 
-- [ ] `src/config.mjs` — personas, model ids, world rules (single knob board)
-- [ ] Key loading: env / `keys.env` → `GROQ_API_KEY`
-- [ ] `src/world/bot.mjs` — mineflayer wrapper: connect, spawn-detection, walk
-      (pathfinder), `tp_to` for > 100 blocks, `dig_block`, `place_block`
-      (inventory-only), `craft`, `equip`
-- [ ] `src/launcher.mjs` — cross-platform provisioner: fetch current Paper jar,
+- [x] `src/config.mjs` — personas, model ids, world rules (single knob board)
+- [x] Key loading: env / `keys.env` → `GROQ_API_KEY`
+- [x] `src/world/bot.mjs` — mineflayer wrapper: connect, spawn-detection, walk
+      (pathfinder), `tp_to` for > 100 blocks, `dig_block` (with drop pickup),
+      `place_block` (inventory-only), `craft`, `equip`; bounded auto-reconnect
+- [x] `src/launcher.mjs` — cross-platform provisioner: fetch current Paper jar,
       accept EULA, find/download JRE 21, boot server, detect readiness
-      (Windows/Linux/macOS, no PowerShell-only paths)
-- [ ] `npm start` boots server + society end-to-end on a clean machine
+      (Windows/Linux/macOS; offline-UUID ops.json so bots are opped)
+- [ ] `npm start` boots server + society end-to-end on a clean machine *(needs
+      a Groq key in keys.env — first live run pending)*
 - [ ] Acceptance: 1 bot connects to fresh server, walks 50 blocks, digs a
       block, places it, without any `/setblock`-style command
 
 ## Phase 2 — Agent runtime (minds)
 
-- [ ] Provider wrapper: Groq via `createOpenAICompatible`, retry/backoff on 429,
-      model id from config (frontier reasoning model)
-- [ ] `src/agents/agent.mjs` — one instance per villager; own AI SDK
+- [x] Provider wrapper: Groq via `createOpenAICompatible`, 429 handled by SDK
+      layer; model id from config (frontier reasoning model)
+- [x] `src/agents/agent.mjs` — one instance per villager; own AI SDK
       conversation history; multi-step `generateText` tool loop
-- [ ] `src/agents/tools.mjs` — zod tool schemas wired to `world/bot.mjs`
-- [ ] `src/agents/prompts.mjs` — system prompt from persona + world rules
-- [ ] `src/world/sense.mjs` — compact world observation (position, inventory,
-      health, hunger, time, nearby entities, heard chat)
-- [ ] Free-will wake loop: jittered idle timer → sense → decide → act
+- [x] `src/agents/tools.mjs` — zod tool schemas wired to `world/bot.mjs`
+      (move/tp/follow, dig/mine/place/craft/equip, scan, claims, disputes,
+      remember, idle)
+- [x] `src/agents/prompts.mjs` — system prompt from persona + world rules
+- [x] Senses folded into each wake (`body.snapshot()`: position, health, food,
+      time, entities, ground, inventory, heard chat)
+- [x] Free-will wake loop: jittered idle timer → sense → decide → act
 - [ ] Acceptance: one agent lives alone for 10 minutes — walks, mines, builds
       something small from materials it gathered, all via tool calls, and its
       history shows it remembering earlier decisions
 
 ## Phase 3 — Society
 
-- [ ] `src/society/bus.mjs` — chat routing, mention detection, heard-chat feed
-      into agent senses
-- [ ] In-character chat tool (`say`) + human recognition (lawgiver priority)
-- [ ] `src/society/claims.mjs` — land-claim ledger (owner, bounds, reason, time)
-- [ ] Territory tools: `claim_land`, `release_land`, `check_claims`
-- [ ] `src/society/memory.mjs` — context hygiene: roll-up of old turns into
-      durable memory lines, pruning
+- [x] `src/society/bus.mjs` — chat routing: named agents addressed, unaddressed
+      lines land with one random villager, human words always wake their target
+- [x] In-character chat tool (`say`) + human recognition (lawgiver priority in
+      prompts)
+- [x] `src/society/claims.mjs` — land-claim ledger (owner, bounds, reason, time)
+      + inter-agent contracts ledger (Phase 4.5 scaffold)
+- [x] Territory tools: `claim_land`, `release_land`, `check_claims`
+- [x] `src/society/memory.mjs` — context hygiene: roll-up of old turns into
+      durable memory lines, pruning; persisted to `data/memory/`
+- [x] Unit tests for the claims ledger (`npm test`, 3 passing)
 - [ ] Acceptance: 4 villagers coexist 30 minutes — chat with each other,
       respond to the human, claim separate land, no shared context leaks
 

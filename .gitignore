@@ -15,6 +15,7 @@ server/
 decisions.jsonl
 chathistory/
 runtime/
+data/
 
 # os / editor junk
 .DS_Store
