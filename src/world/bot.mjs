@@ -7,6 +7,7 @@ import { Vec3 } from 'vec3'
 import pathfinderPkg from 'mineflayer-pathfinder'
 
 const { pathfinder, Movements, goals } = pathfinderPkg
+const { GoalNear } = goals
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const AIR = new Set(['air', 'cave_air', 'void_air'])
 
@@ -32,7 +33,7 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
       if (state.heardChat.length > 30) state.heardChat.splice(0, state.heardChat.length - 30)
     })
     bot.on('error', (e) => log('body', 'error', { user: username, error: e.message }))
-    bot.on('kicked', (reason) => log('body', 'kicked', { user: username, reason: String(reason).slice(0, 200) }))
+    bot.on('kicked', (reason) => log('body', 'kicked', { user: username, reason: JSON.stringify(reason).slice(0, 200) }))
     bot.on('end', () => { if (!state.closed) reconnect() })
   }
 
@@ -215,6 +216,26 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
     emit('chat', { msg: text })
   }
 
+  // Where a connected player/villager actually is right now.
+  function playerPos(name) {
+    const b = bot()
+    const p = b.players[name]?.entity?.position
+    return p ? { x: Math.round(p.x), y: Math.round(p.y), z: Math.round(p.z) } : null
+  }
+
+  // Deliver goods the vanilla way: stand next to the player and drop the
+  // items at their feet. Creative give covers the stock; no /give to the player.
+  async function tossItem(itemName, count = 1) {
+    const b = bot()
+    await equip(itemName.replace(/^minecraft:/, ''))
+    const item = b.inventory.items().find((i) => i.name === itemName.replace(/^minecraft:/, ''))
+    if (!item) return { ok: false, error: `no ${itemName} to hand over` }
+    const n = Math.min(count, item.count)
+    await b.toss(item.type, null, n)
+    emit('tossed', { item: itemName, count: n })
+    return { ok: true, item: itemName, count: n }
+  }
+
   // --- senses ---------------------------------------------------------------
   function inventory() {
     const b = bot()
@@ -256,5 +277,6 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
     get ready() { return state.ready },
     snapshot, inventory,
     say, hear, equip, moveTo, walkTo, follow, tpTo, digBlock, placeBlock, craftItem,
+    playerPos, tossItem,
   }
 }

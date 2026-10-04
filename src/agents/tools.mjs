@@ -52,6 +52,30 @@ export function createTools({ body, claims, memory, resolveDispute }) {
       },
     }),
 
+    locate_player: tool({
+      description: `Get the current coordinates of a connected player or villager (by exact name).`,
+      inputSchema: z.object({ name: z.string() }),
+      execute: async ({ name }) => {
+        const p = body.playerPos(name)
+        logTool('locate_player', { name }, p || 'not visible')
+        if (!p) return `${name} is not connected or out of sight`
+        return JSON.stringify(p)
+      },
+    }),
+
+    bring_item: tool({
+      description: `Deliver items to a player: walk to them and drop the goods at their feet. Gather what they asked for first (mine_nearby / craft_item), then use this.`,
+      inputSchema: z.object({ player: z.string().describe('exact player name'), item: z.string().describe('item name, e.g. oak_log, cobblestone, bread'), count: z.number().min(1).max(64).default(1) }),
+      execute: async ({ player, item, count }) => {
+        const p = body.playerPos(player)
+        if (!p) { logTool('bring_item', { player, item, count }, 'player not found'); return `${player} is not connected or out of sight` }
+        try { await body.moveTo(p.x, p.y, p.z, { timeout: w.walkTimeoutMs }) } catch (e) { /* get as close as possible */ }
+        const r = await body.tossItem(item, count)
+        logTool('bring_item', { player, item, count }, r)
+        return r.ok ? `handed ${r.count} ${item} to ${player}` : `failed: ${r.error}`
+      },
+    }),
+
     dig_block: tool({
       description: 'Dig a specific block. Takes real time; the drops walk into your inventory.',
       inputSchema: z.object({ x: z.number(), y: z.number(), z: z.number() }),

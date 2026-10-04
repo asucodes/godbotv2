@@ -12,11 +12,15 @@ export function createBus({ agents }) {
   function route(username, message) {
     const lower = message.toLowerCase()
     const named = names.filter((n) => lower.includes(n.toLowerCase()))
+    // the supreme commander is heard by every villager, always
+    if (username === CONFIG.world.humanName) {
+      for (const a of agents) a.hear({ from: username, text: message })
+      return { deliveredTo: names }
+    }
     const targets = named.length ? named : [names[Math.floor(Math.random() * names.length)]]
     for (const a of agents) {
       if (targets.includes(a.name)) a.hear({ from: username, text: message })
     }
-    // the human's words always wake exactly the agents they reached
     return { deliveredTo: targets }
   }
 
