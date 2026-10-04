@@ -1,0 +1,24 @@
+{
+  "name": "godbotv2",
+  "version": "2.0.0",
+  "description": "Autonomous multi-agent Minecraft society — free-will villagers, real work, a moderator for their disputes",
+  "type": "module",
+  "license": "MIT",
+  "main": "src/society.mjs",
+  "scripts": {
+    "start": "node src/launcher.mjs",
+    "society": "node src/society.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "ai": "^5.0.0",
+    "express": "^5.2.1",
+    "mineflayer": "^4.39.0",
+    "mineflayer-pathfinder": "^2.4.5",
+    "vec3": "^0.1.10",
+    "zod": "^4.6.5"
+  }
+}

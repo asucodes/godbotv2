@@ -1,0 +1,22 @@
+# secrets
+keys.env
+.env
+
+# node
+node_modules/
+*.log
+
+# provisioned at runtime — never commit
+server/
+!server/.gitkeep
+*.jar
+
+# runtime state
+decisions.jsonl
+chathistory/
+runtime/
+
+# os / editor junk
+.DS_Store
+Thumbs.db
+~$*
