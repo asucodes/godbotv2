@@ -102,7 +102,7 @@ function provisionServer() {
   fs.writeFileSync(path.join(SERVER, 'server.properties'), [
     `server-port=${CONFIG.server.port}`,
     'online-mode=false',
-    'gamemode=survival',
+    'gamemode=creative',
     'difficulty=normal',
     'motd=Godbot v2 — a living village',
     'spawn-protection=0',
@@ -146,8 +146,8 @@ function track(p) { kids.push(p); p.once('exit', () => { const i = kids.indexOf(
 
 async function main() {
   const keys = loadKeys()
-  if (!keys.GROQ_API_KEY) {
-    die('missing GROQ_API_KEY — copy keys.env.example to keys.env, or export the variable')
+  if (!keys.OPENROUTER_API_KEY) {
+    die('missing OPENROUTER_API_KEY — paste it into keys.env (see keys.env.example)')
   }
   if (!fs.existsSync(path.join(ROOT, 'node_modules'))) {
     say('node_modules missing — run `npm install` first'); process.exit(1)

@@ -142,3 +142,10 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
 | 2026-10-05 | TP allowed as transport for > 100 blocks, logged                |
 | 2026-10-05 | Fresh Paper server provisioned at runtime; nothing server-side  |
 |            | in git; cross-platform launcher                                 |
+| 2026-10-05 | Provider switched Groq → OpenRouter; mind model                  |
+|            | `nvidia/nemotron-3-super-120b-a12b:free`; JEV kept as cheap      |
+|            | bounded arbiter (`src/llm/jev.mjs`), never a restriction         |
+| 2026-10-05 | Strict output discipline added to all agent prompts (no junk,   |
+|            | terse wakes, in-character speech)                                |
+| 2026-10-05 | Creative mode for now: gamemode=creative, spawn-enforced,        |
+|            | creative-inventory fallback for block placement                  |

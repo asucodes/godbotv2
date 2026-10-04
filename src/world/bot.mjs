@@ -23,6 +23,9 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
 
   function bind(bot) {
     bot.loadPlugin(pathfinder)
+    // creative mode for now (per design decision): every body enforces it at
+    // spawn. Bots are opped via ops.json, so the command sticks.
+    bot.once('spawn', () => { try { bot.chat(`/gamemode creative ${username}`) } catch {} })
     bot.on('chat', (from, text) => {
       if (from === username) return
       state.heardChat.push({ from, text, at: Date.now() })
@@ -105,11 +108,29 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
   }
 
   // --- real work ------------------------------------------------------------------
+  // Creative-mode inventory: the legitimate way a creative body obtains a
+  // stack (not a server cheat — it is the creative mechanic itself).
+  async function creativeGive(itemName) {
+    const b = bot()
+    if (!b.game || b.game.gameMode !== 'creative') return false
+    try {
+      const item = b.registry.itemsByName[itemName.replace(/^minecraft:/, '')]
+      if (!item) return false
+      const empty = b.inventory.slots.findIndex((s, i) => i > 44 || !s) // hotbar/main first empty
+      const slot = empty >= 0 && empty < 45 ? empty : 36
+      await b.creative.setInventorySlot(slot, { type: item.id, count: 64 })
+      await sleep(200)
+      return true
+    } catch { return false }
+  }
+
   async function equip(itemName) {
     const b = bot()
     const held = b.heldItem
-    if (held && held.name === itemName) return
-    const item = b.inventory.items().find((i) => i.name === itemName || i.name === itemName.replace(/^minecraft:/, ''))
+    const want = itemName.replace(/^minecraft:/, '')
+    if (held && held.name === want) return
+    let item = b.inventory.items().find((i) => i.name === want)
+    if (!item && (await creativeGive(want))) item = b.inventory.items().find((i) => i.name === want)
     if (!item) throw new Error(`no ${itemName} in inventory`)
     await b.equip(item, 'hand')
   }

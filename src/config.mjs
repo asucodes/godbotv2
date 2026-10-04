@@ -31,14 +31,17 @@ export const CONFIG = {
   },
 
   llm: {
-    baseURL: 'https://api.groq.com/openai/v1',
-    // Frontier reasoning on Groq. Per-agent overrides go on the persona.
-    decisionModel: 'openai/gpt-oss-120b',
-    reasoningEffort: 'medium',
+    openrouterBaseURL: 'https://openrouter.ai/api/v1',
+    // The one mind-model, free tier. Per-agent overrides go on the persona.
+    decisionModel: 'nvidia/nemotron-3-super-120b-a12b:free',
     maxOutputTokens: 2048,
     temperature: 0.8,
     maxToolSteps: 14,           // steps per wake before the model must yield
     maxHistoryMessages: 80,     // raw turns kept before a memory roll-up prunes
+
+    // JEV (Experiential Labs) — bounded arbiter for quick binary choices, used
+    // where a full reasoning wake would be waste. Client: src/llm/jev.mjs
+    jevURL: 'https://api.experientiallabs.ai/v1/systemone',
   },
 
   world: {

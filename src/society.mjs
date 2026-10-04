@@ -11,8 +11,8 @@ import { createMemory } from './society/memory.mjs'
 import { log } from './obs/logger.mjs'
 
 const keys = loadKeys()
-if (!keys.GROQ_API_KEY) {
-  console.error('GROQ_API_KEY missing — copy keys.env.example to keys.env or export it')
+if (!keys.OPENROUTER_API_KEY) {
+  console.error('OPENROUTER_API_KEY missing — paste it into keys.env')
   process.exit(1)
 }
 
