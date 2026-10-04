@@ -4,9 +4,9 @@
 // Survives disconnects with bounded auto-reconnect.
 import mineflayer from 'mineflayer'
 import { Vec3 } from 'vec3'
-import { pathfinder, Movements, goals } from 'mineflayer-pathfinder'
+import pathfinderPkg from 'mineflayer-pathfinder'
 
-const { GoalNear, GoalBlock } = goals
+const { pathfinder, Movements, goals } = pathfinderPkg
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const AIR = new Set(['air', 'cave_air', 'void_air'])
 
@@ -252,7 +252,9 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
   function hear(msg) { state.heardChat.push({ ...msg, at: Date.now() }) }
 
   return {
-    username, bot, ready, snapshot, inventory,
+    username, bot,
+    get ready() { return state.ready },
+    snapshot, inventory,
     say, hear, equip, moveTo, walkTo, follow, tpTo, digBlock, placeBlock, craftItem,
   }
 }

@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
+import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { CONFIG, loadKeys } from './config.mjs'
 
@@ -32,7 +33,11 @@ async function download(url, dest, label) {
   const res = await fetch(url, { redirect: 'follow' })
   if (!res.ok) die(`download failed (${res.status}) for ${label}`)
   const out = fs.createWriteStream(dest)
-  await new Promise((resolve, reject) => { res.body.pipe(out); res.body.on('error', reject); out.on('finish', resolve) })
+  await new Promise((resolve, reject) => {
+    Readable.fromWeb(res.body).pipe(out)
+    out.on('error', reject)
+    out.on('finish', resolve)
+  })
 }
 
 function portUp(port, host = '127.0.0.1') {
@@ -44,19 +49,20 @@ function portUp(port, host = '127.0.0.1') {
   })
 }
 
-// Resolve the current Paper build for the configured version; fall back to the
-// pinned build if the API is unreachable.
+// Resolve the current Paper build for the configured version via the Fill v3
+// API (v2 is retired and answers 410); fall back to the pinned build if the
+// API is unreachable.
 async function paperJarUrl() {
   const v = CONFIG.server.paperVersion
-  const base = `https://api.papermc.io/v2/projects/paper/versions/${v}`
   try {
-    const res = await fetch(`${base}/builds`)
+    const res = await fetch(`https://fill.papermc.io/v3/projects/paper/versions/${v}/builds/latest`)
     if (res.ok) {
       const data = await res.json()
-      const latest = data.builds?.[data.builds.length - 1]?.build ?? CONFIG.server.paperBuildFallback
-      return `${base}/builds/${latest}/downloads/paper-${v}-${latest}.jar`
+      const url = data.downloads?.['server:default']?.url
+      if (url) return url
     }
   } catch { /* offline API — fall through */ }
+  const base = `https://fill.papermc.io/v3/projects/paper/versions/${v}`
   return `${base}/builds/${CONFIG.server.paperBuildFallback}/downloads/paper-${v}-${CONFIG.server.paperBuildFallback}.jar`
 }
 
@@ -86,8 +92,17 @@ async function ensureJava() {
   fs.mkdirSync(RUNTIME, { recursive: true })
   const archive = path.join(RUNTIME, 'jre21.' + t.ext)
   await download(t.url, archive, 'Temurin JRE 21')
-  const x = spawnSync('tar', ['-xf', archive, '-C', RUNTIME])
-  if (x.status !== 0) die('JRE extraction failed — is tar available?')
+  say('extracting JRE...')
+  // Windows' GNU tar (Git Bash) can't read zip; its native bsdtar can. On unix
+  // plain tar handles tar.gz. PowerShell Expand-Archive is the last resort.
+  let ok = false
+  if (process.platform === 'win32') {
+    ok = spawnSync('C:\\Windows\\System32\\tar.exe', ['-xf', archive, '-C', RUNTIME]).status === 0
+    if (!ok) ok = spawnSync('powershell', ['-NoProfile', '-Command', `Expand-Archive -Force '${archive}' '${RUNTIME}'`]).status === 0
+  } else {
+    ok = spawnSync('tar', ['-xf', archive, '-C', RUNTIME]).status === 0
+  }
+  if (!ok) die('JRE extraction failed')
   fs.unlinkSync(archive)
   const jdk = fs.readdirSync(RUNTIME).find((d) => fs.existsSync(path.join(RUNTIME, d, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')))
   if (!jdk) die('JRE not found after extraction')
@@ -110,7 +125,7 @@ function provisionServer() {
     'level-type=minecraft\\:normal',
     '',
   ].join('\n'))
-  const ops = Object.keys(CONFIG.personas).map((name) => ({
+  const ops = [...Object.keys(CONFIG.personas), CONFIG.world.humanName].map((name) => ({
     uuid: offlineUuid(name), name, level: 4, bypassesPlayerLimit: true,
   }))
   fs.writeFileSync(path.join(SERVER, 'ops.json'), JSON.stringify(ops, null, 2))
