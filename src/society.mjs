@@ -11,8 +11,8 @@ import { createMemory } from './society/memory.mjs'
 import { log } from './obs/logger.mjs'
 
 const keys = loadKeys()
-if (!keys.OPENROUTER_API_KEY) {
-  console.error('OPENROUTER_API_KEY missing — paste it into keys.env')
+if (!keys.GEMINI_API_KEY) {
+  console.error('GEMINI_API_KEY missing — paste it into keys.env')
   process.exit(1)
 }
 

@@ -31,19 +31,19 @@ export const CONFIG = {
   },
 
   llm: {
-    openrouterBaseURL: 'https://openrouter.ai/api/v1',
-    // The one mind-model, free tier. Per-agent overrides go on the persona.
-    decisionModel: 'nvidia/nemotron-3-super-120b-a12b:free',
+    // The one mind-model. Gemini 2.5 Flash: fast, tool-calling, generous
+    // free-tier limits. Per-agent overrides go on the persona.
+    decisionModel: 'gemini-2.5-flash',
     maxOutputTokens: 2048,
     temperature: 0.8,
     maxToolSteps: 14,           // steps per wake before the model must yield
     maxHistoryMessages: 80,     // raw turns kept before a memory roll-up prunes
+    errorCooldownMs: 300000,    // after a quota/rate error, minds pause 5 min
 
     // JEV (Experiential Labs) — bounded arbiter for quick binary choices, used
     // where a full reasoning wake would be waste. Client: src/llm/jev.mjs
     jevURL: 'https://api.experientiallabs.ai/v1/systemone',
   },
-
   world: {
     tpThreshold: 100,           // blocks — beyond this, tp is open transport
     walkTimeoutMs: 30000,

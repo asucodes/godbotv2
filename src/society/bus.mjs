@@ -8,14 +8,21 @@ import { CONFIG } from '../config.mjs'
 
 export function createBus({ agents }) {
   const names = agents.map((a) => a.name)
+  let duty = 0 // rotating duty officer for unaddressed lines — bounds model calls
 
   function route(username, message) {
     const lower = message.toLowerCase()
     const named = names.filter((n) => lower.includes(n.toLowerCase()))
-    // the supreme commander is heard by every villager, always
     if (username === CONFIG.world.humanName) {
-      for (const a of agents) a.hear({ from: username, text: message })
-      return { deliveredTo: names }
+      // the supreme commander is always heard — but the free model quota is
+      // finite: tagged bots respond; an unaddressed line lands with the duty
+      // officer; "everyone" summons the whole village
+      let targets = named.length ? named : [names[duty++ % names.length]]
+      if (!named.length && /\beveryone\b|all of you|assemble/i.test(lower)) targets = names
+      for (const a of agents) {
+        if (targets.includes(a.name)) a.hear({ from: username, text: message })
+      }
+      return { deliveredTo: targets }
     }
     const targets = named.length ? named : [names[Math.floor(Math.random() * names.length)]]
     for (const a of agents) {

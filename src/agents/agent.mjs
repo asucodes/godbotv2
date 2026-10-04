@@ -9,7 +9,7 @@
 //   plan, a dispute. Its history is its own; free will lives at both tiers.
 import { generateText, stepCountIs } from 'ai'
 import { CONFIG } from '../config.mjs'
-import { model } from '../llm/provider.mjs'
+import { model, isQuotaError } from '../llm/provider.mjs'
 import { jevAsk } from '../llm/jev.mjs'
 import { createTools } from './tools.mjs'
 import { createExecutor } from './executor.mjs'
@@ -22,6 +22,8 @@ export function createAgent({ persona, body, claims, memory, resolveDispute }) {
   const inbox = []
   let busy = false
   let lastAmbient = 0
+  let llmBlockedUntil = 0 // quota/rate pause — minds do not hammer a dead API
+  const recentPositions = [] // stuck detection
 
   const tools = createTools({ body, claims, memory, resolveDispute })
   const executor = createExecutor({ body, claims, persona })
@@ -36,6 +38,16 @@ export function createAgent({ persona, body, claims, memory, resolveDispute }) {
 
   // --- Tier 2: the mind (reasoning model + full tool loop) ----------------------
   async function llmWake(reason, messages = []) {
+    // quota pause: answer in character from the persona instead of hammering
+    // a rate-limited API — a villager is never silent, just simple-minded now
+    if (Date.now() < llmBlockedUntil) {
+      if (messages.length) {
+        const line = persona.ambient?.[Math.floor(Math.random() * (persona.ambient?.length || 1))] || 'Hmm?'
+        await body.say(line)
+        log('agent', 'llm-paused-canned', { user: name, reason })
+      }
+      return
+    }
     const snap = body.snapshot()
     history.push({
       role: 'user',
@@ -48,15 +60,30 @@ export function createAgent({ persona, body, claims, memory, resolveDispute }) {
       ].filter(Boolean).join('\n'),
     })
 
-    const result = await generateText({
-      model: model(),
-      system,
-      messages: history,
-      tools,
-      temperature: CONFIG.llm.temperature,
-      maxOutputTokens: CONFIG.llm.maxOutputTokens,
-      stopWhen: stepCountIs(CONFIG.llm.maxToolSteps),
-    })
+    let result
+    try {
+      result = await generateText({
+        model: model(),
+        system,
+        messages: history,
+        tools,
+        temperature: CONFIG.llm.temperature,
+        maxOutputTokens: CONFIG.llm.maxOutputTokens,
+        stopWhen: stepCountIs(CONFIG.llm.maxToolSteps),
+      })
+    } catch (e) {
+      if (isQuotaError(e)) {
+        llmBlockedUntil = Date.now() + CONFIG.llm.errorCooldownMs
+        log('system', 'llm-quota-pause', { user: name, cooldownMs: CONFIG.llm.errorCooldownMs, error: e.message.slice(0, 120) })
+      } else {
+        log('system', 'llm-error', { user: name, error: e.message.slice(0, 160) })
+      }
+      if (messages.length) {
+        const line = persona.ambient?.[Math.floor(Math.random() * (persona.ambient?.length || 1))] || 'Hmm?'
+        await body.say(line)
+      }
+      return
+    }
 
     history.push(...result.response.messages)
     log('agent', 'llm-wake', {
@@ -98,6 +125,20 @@ export function createAgent({ persona, body, claims, memory, resolveDispute }) {
       log('jev', 'error', { user: name, error: e.message }) // fall back to wandering
     }
 
+    // self-preservation comes before any chore: drowning, buried, or rooted
+    // to one spot for three wakes — climb out to the surface first
+    const posKey = `${snap.position.x},${snap.position.y},${snap.position.z}`
+    recentPositions.push(posKey)
+    if (recentPositions.length > 3) recentPositions.shift()
+    const stuck = recentPositions.length === 3 && recentPositions.every((k) => k === posKey)
+    if (snap.inWater || stuck) {
+      log('agent', 'self-rescue', { user: name, inWater: snap.inWater, stuck })
+      await body.surfaceTp(snap.position.x + 3, snap.position.z + 3)
+      recentPositions.length = 0
+      memory.remember('I got stuck and climbed back to the surface.')
+      return
+    }
+
     const run = executor.actions[action] || executor.actions.wander
     const result = await run(snap)
     log('agent', 'routine', { user: name, action, ...result })
@@ -121,6 +162,7 @@ export function createAgent({ persona, body, claims, memory, resolveDispute }) {
   // --- context hygiene -----------------------------------------------------------
   async function rollupIfNeeded() {
     if (history.length <= CONFIG.llm.maxHistoryMessages) return
+    if (Date.now() < llmBlockedUntil) return // do not spend quota on housekeeping
     const keep = Math.floor(CONFIG.llm.maxHistoryMessages / 2)
     const old = history.splice(0, history.length - keep)
     const transcript = old

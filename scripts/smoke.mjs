@@ -7,10 +7,10 @@ import { jevAsk } from '../src/llm/jev.mjs'
 const keys = loadKeys()
 let failed = false
 
-// --- OpenRouter / agent mind ---------------------------------------------------
-console.log(`[1/2] OpenRouter — ${CONFIG.llm.decisionModel}`)
+// --- Gemini / agent mind -------------------------------------------------------
+console.log(`[1/2] Gemini — ${CONFIG.llm.decisionModel}`)
 try {
-  if (!keys.OPENROUTER_API_KEY || keys.OPENROUTER_API_KEY.startsWith('paste')) throw new Error('key not pasted into keys.env yet')
+  if (!keys.GEMINI_API_KEY || keys.GEMINI_API_KEY.startsWith('paste')) throw new Error('key not pasted into keys.env yet')
   const r = await generateText({
     model: (await import('../src/llm/provider.mjs')).model(),
     system: 'You are a Minecraft villager named Mason, a gruff stonemason. Answer with one short spoken line, in character, no markdown.',

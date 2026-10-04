@@ -21,6 +21,9 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
     heardChat: [], // [{ from, text, at }] — fed to senses
   }
   const opts = { host, port, username, version, auth: 'offline' }
+  // Paper echoes command feedback into chat (and TLauncher appends ']'). These
+  // are not conversation — reacting to them wastes reasoning-model calls.
+  const SERVER_NOISE = /^(Teleported |Set the world spawn|Killed |Gamemode|Given |Placed |Filled |Summoned |Weather |Time set|Effect |Enchanting|Difficulty |Saved the game|Set own gamemode)/
 
   function bind(bot) {
     bot.loadPlugin(pathfinder)
@@ -28,7 +31,7 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
     // spawn. Bots are opped via ops.json, so the command sticks.
     bot.once('spawn', () => { try { bot.chat(`/gamemode creative ${username}`) } catch {} })
     bot.on('chat', (from, text) => {
-      if (from === username) return
+      if (from === username || SERVER_NOISE.test(text)) return
       state.heardChat.push({ from, text, at: Date.now() })
       if (state.heardChat.length > 30) state.heardChat.splice(0, state.heardChat.length - 30)
     })
@@ -139,6 +142,12 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
   // Dig a block, then walk over the drops so they actually enter inventory.
   async function digBlock(x, y, z, { timeout = 30000 } = {}) {
     const b = bot()
+    // never dig the block supporting our own feet — that is how villagers
+    // end up at the bottom of a one-block shaft
+    const feet = b.entity.position.floored()
+    if (x === feet.x && y === feet.y - 1 && z === feet.z) {
+      try { await moveTo(x + 2, feet.y, z, { timeout: 8000 }) } catch {}
+    }
     const target = b.blockAt(new Vec3(x, y, z))
     if (!target || AIR.has(target.name)) return { ok: false, error: 'nothing to dig there' }
     const p = b.entity.position
@@ -223,6 +232,27 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
     return p ? { x: Math.round(p.x), y: Math.round(p.y), z: Math.round(p.z) } : null
   }
 
+  // Self-rescue: teleport high, read the terrain column once the chunks
+  // arrive, then land on the surface. Used when a body is stuck, drowning,
+  // or lost underground — open transport, honestly logged.
+  async function surfaceTp(x, z) {
+    const b = bot()
+    x = Math.floor(x); z = Math.floor(z)
+    await tpTo(x, 140, z)
+    let surfaceY = null
+    for (let t = 0; t < 10 && surfaceY == null; t++) {
+      await sleep(700)
+      for (let y = 130; y > -64; y--) {
+        const blk = b.blockAt(new Vec3(x, y, z))
+        if (blk && !AIR.has(blk.name)) { surfaceY = y; break }
+      }
+    }
+    if (surfaceY == null) { await tpTo(x, 80, z); return false }
+    await tpTo(x, surfaceY + 1, z)
+    emit('rescued', { to: { x, y: surfaceY + 1, z } })
+    return true
+  }
+
   // Deliver goods the vanilla way: stand next to the player and drop the
   // items at their feet. Creative give covers the stock; no /give to the player.
   async function tossItem(itemName, count = 1) {
@@ -262,6 +292,7 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
     return {
       position: { x: Math.round(p.x), y: Math.round(p.y), z: Math.round(p.z) },
       health: b.health, food: b.food,
+      inWater: !!b.entity.isInWater,
       timeOfDay, isNight: timeOfDay != null ? (timeOfDay > 13000 && timeOfDay < 23000) : null,
       groundNearby: [...new Set(nearby)],
       entities,
@@ -277,6 +308,6 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
     get ready() { return state.ready },
     snapshot, inventory,
     say, hear, equip, moveTo, walkTo, follow, tpTo, digBlock, placeBlock, craftItem,
-    playerPos, tossItem,
+    playerPos, tossItem, surfaceTp,
   }
 }

@@ -161,8 +161,8 @@ function track(p) { kids.push(p); p.once('exit', () => { const i = kids.indexOf(
 
 async function main() {
   const keys = loadKeys()
-  if (!keys.OPENROUTER_API_KEY) {
-    die('missing OPENROUTER_API_KEY — paste it into keys.env (see keys.env.example)')
+  if (!keys.GEMINI_API_KEY) {
+    die('missing GEMINI_API_KEY — paste it into keys.env (see keys.env.example)')
   }
   if (!fs.existsSync(path.join(ROOT, 'node_modules'))) {
     say('node_modules missing — run `npm install` first'); process.exit(1)

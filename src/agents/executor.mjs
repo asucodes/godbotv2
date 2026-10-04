@@ -71,7 +71,8 @@ export function createExecutor({ body, claims, persona }) {
       const dist = 60 + Math.random() * 60 // up to ~120: honest travel
       const tx = Math.round(p.x + Math.cos(ang) * dist)
       const tz = Math.round(p.z + Math.sin(ang) * dist)
-      await body.tpTo(tx, p.y + 2, tz)
+      // land on the surface, not in an ocean or a cave ceiling
+      await body.surfaceTp(tx, tz)
       return { ok: true, note: `explored out to ${tx},${tz}` }
     },
 
