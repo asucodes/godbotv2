@@ -18,7 +18,12 @@ export function createTools({ body, claims, memory, resolveDispute }) {
     say: tool({
       description: 'Say something in village chat, in character, under 100 chars.',
       inputSchema: z.object({ text: z.string().describe('what to say') }),
-      execute: async ({ text }) => { await body.say(text); logTool('say', { text }, 'ok'); return 'spoken' },
+      execute: async ({ text }) => {
+        const clean = text.replace(/^["'\s]+|["'\s]+$/g, '') // models love wrapping speech in quotes
+        await body.say(clean)
+        logTool('say', { text: clean }, 'ok')
+        return 'spoken'
+      },
     }),
 
     move_to: tool({

@@ -1,11 +1,18 @@
 // agents/agent.mjs — ONE agent instance per villager. Own body, own model
 // calls, own conversation history (its context window — nothing shared), own
-// memory. The AI SDK runs a multi-step tool loop; the model decides everything.
-// There is no action whitelist and no director: free will is the loop itself.
+// memory. Two-tier mind, for efficiency:
+//   Tier 1 (routine): JEV picks the activity, the executor carries it out
+//   deterministically — zero reasoning-model calls for the mundane Minecraft
+//   of walking, mining, whimsical builds, resting.
+//   Tier 2 (mind): the OpenRouter reasoning model wakes only when it is
+//   actually needed — conversation, a human's word, a conflict or blocked
+//   plan, a dispute. Its history is its own; free will lives at both tiers.
 import { generateText, stepCountIs } from 'ai'
 import { CONFIG } from '../config.mjs'
 import { model } from '../llm/provider.mjs'
+import { jevAsk } from '../llm/jev.mjs'
 import { createTools } from './tools.mjs'
+import { createExecutor } from './executor.mjs'
 import { systemPrompt } from './prompts.mjs'
 import { log } from '../obs/logger.mjs'
 
@@ -14,8 +21,10 @@ export function createAgent({ persona, body, claims, memory, resolveDispute }) {
   const history = [] // CoreMessage[] — this agent's own context window
   const inbox = []
   let busy = false
+  let lastAmbient = 0
 
   const tools = createTools({ body, claims, memory, resolveDispute })
+  const executor = createExecutor({ body, claims, persona })
   const system = systemPrompt(name, persona, { claims })
 
   function memoryBlock() {
@@ -25,52 +34,91 @@ export function createAgent({ persona, body, claims, memory, resolveDispute }) {
     return parts.join('\n\n')
   }
 
-  // One wake: observe → decide → act (multi-step tool loop) → reflect.
-  async function wake(reason) {
-    if (busy) return
-    busy = true
-    try {
-      const snap = body.snapshot()
-      const observation = [
+  // --- Tier 2: the mind (reasoning model + full tool loop) ----------------------
+  async function llmWake(reason, messages = []) {
+    const snap = body.snapshot()
+    history.push({
+      role: 'user',
+      content: [
         `[${reason}]`,
+        messages.length ? messages.map((m) => `${m.from} said to you: "${m.text}"`).join('\n') : null,
         `You sense: ${JSON.stringify(snap)}`,
         memoryBlock(),
         `What do you do? Choose tools freely — work, wander, talk, claim, rest, or nothing. Act, in character.`,
-      ].join('\n')
+      ].filter(Boolean).join('\n'),
+    })
 
-      history.push({ role: 'user', content: observation })
+    const result = await generateText({
+      model: model(),
+      system,
+      messages: history,
+      tools,
+      temperature: CONFIG.llm.temperature,
+      maxOutputTokens: CONFIG.llm.maxOutputTokens,
+      stopWhen: stepCountIs(CONFIG.llm.maxToolSteps),
+    })
 
-      const result = await generateText({
-        model: model(),
-        system,
-        messages: history,
-        tools,
-        temperature: CONFIG.llm.temperature,
-        maxOutputTokens: CONFIG.llm.maxOutputTokens,
-        stopWhen: stepCountIs(CONFIG.llm.maxToolSteps),
+    history.push(...result.response.messages)
+    log('agent', 'llm-wake', {
+      user: name, reason,
+      steps: result.steps?.length ?? 0,
+      tools: (result.toolCalls || []).map((c) => c.toolName),
+      text: result.text?.slice(0, 160) || '',
+    })
+
+    await rollupIfNeeded()
+  }
+
+  // --- Tier 1: JEV + nerves (no reasoning-model calls) ----------------------------
+  async function routineWake(reason) {
+    const snap = body.snapshot()
+    let action = 'wander'
+    try {
+      const out = await jevAsk({
+        action: {
+          type: 'choice',
+          instructions: `What should ${name} (${persona.role}, hobby: ${persona.mineTarget || 'general work'}) do next? Recent: ${reason}. Inventory: ${snap.inventory.slice(0, 6).join(', ') || 'empty'}.`,
+          criteria: {
+            mine: `dig ${executor.mineTarget} nearby`,
+            wander: 'stroll somewhere close',
+            explore: 'travel out and look at the land',
+            build: 'place a small whim-work (post, cairn, bench, bed)',
+            decorate: 'add lanterns or flowers nearby',
+            rest: 'pause and breathe',
+            chat: 'seek company or murmur a line',
+          },
+        },
+      }, {
+        name, role: persona.role, pos: snap.position, isNight: snap.isNight,
+        entitiesNearby: (snap.entities || []).length, claimsHeld: claims.byOwner(name).length,
+        reason,
       })
-
-      // fold everything the model did back into its own context window
-      history.push(...result.response.messages)
-
-      log('agent', 'wake', {
-        user: name, reason,
-        steps: result.steps?.length ?? 0,
-        tools: (result.toolCalls || []).map((c) => c.toolName),
-        text: result.text?.slice(0, 160) || '',
-      })
-
-      await rollupIfNeeded()
+      action = out.action || 'wander'
     } catch (e) {
-      log('system', 'agent-error', { user: name, error: e.message })
-    } finally {
-      busy = false
-      if (inbox.length) setTimeout(() => wake('something happened'), 1200)
+      log('jev', 'error', { user: name, error: e.message }) // fall back to wandering
+    }
+
+    const run = executor.actions[action] || executor.actions.wander
+    const result = await run(snap)
+    log('agent', 'routine', { user: name, action, ...result })
+
+    // ambient in-character line: costs nothing, keeps the villager visible
+    const now = Date.now()
+    if (result.ambient && persona.ambient?.length && now - lastAmbient > 4 * 60 * 1000) {
+      const line = persona.ambient[Math.floor(Math.random() * persona.ambient.length)]
+      await body.say(line)
+      lastAmbient = now
+      log('agent', 'says', { user: name, message: line, via: 'canned' })
+    }
+
+    // escalation: the routine layer hit a conflict — wake the mind on it
+    if (result.escalate) {
+      log('agent', 'escalate', { user: name, action, reason: result.escalate })
+      await llmWake(`${reason}. While you ${action}, your instincts hit a snag: ${result.escalate}`)
     }
   }
 
-  // Context hygiene: when raw history grows past the cap, summarize the old
-  // half into the rollup and prune — the agent keeps its identity, drops bulk.
+  // --- context hygiene -----------------------------------------------------------
   async function rollupIfNeeded() {
     if (history.length <= CONFIG.llm.maxHistoryMessages) return
     const keep = Math.floor(CONFIG.llm.maxHistoryMessages / 2)
@@ -89,6 +137,22 @@ export function createAgent({ persona, body, claims, memory, resolveDispute }) {
       log('agent', 'memory-rollup', { user: name, pruned: old.length })
     } catch (e) {
       log('system', 'rollup-error', { user: name, error: e.message })
+    }
+  }
+
+  // --- the wake router -------------------------------------------------------------
+  async function wake(reason) {
+    if (busy) return
+    busy = true
+    try {
+      const messages = inbox.splice(0)
+      if (messages.length) await llmWake(reason, messages) // talk → mind
+      else await routineWake(reason)                        // chores → JEV + nerves
+    } catch (e) {
+      log('system', 'agent-error', { user: name, error: e.message })
+    } finally {
+      busy = false
+      if (inbox.length) setTimeout(() => wake('something happened'), 1200)
     }
   }
 

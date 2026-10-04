@@ -49,6 +49,27 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
       something small from materials it gathered, all via tool calls, and its
       history shows it remembering earlier decisions
 
+## Phase 2.5 — Two-tier mind (JEV efficiency layer) — adopted 2026-10-05
+
+The OpenRouter free model is quota-tight, so mundane Minecraft never touches
+it. JEV + a deterministic executor ("the nerves") carry routine life; the
+reasoning model wakes only for what deserves a mind.
+
+- [x] `src/agents/executor.mjs` — zero-model executor: mine (persona's target),
+      wander, explore (honest tp travel), whim-builds (real placement), decorate,
+      rest; every failure returns a *conflict* instead of failing silently
+- [x] JEV routine decision call with world state (position, night, company,
+      claims, inventory) — falls back to wander on JEV outage
+- [x] Wake router in `agent.mjs`: messages → mind; no messages → JEV + nerves;
+      executor conflicts → escalate to the mind with the snag in context
+- [x] Ambient in-character lines per persona (canned, zero cost) so villagers
+      stay visibly alive between model wakes
+- [x] `scripts/dryrun-jev.mjs` — live-key dry run of the exact JEV contract
+      (validated: Grimm→mine, Willow→build, Pearl→rest)
+- [ ] Acceptance (live): 20-minute run shows ≥80% of wakes resolved by
+      JEV+executor with zero OpenRouter calls; model calls only on chat,
+      conflicts, and disputes
+
 ## Phase 3 — Society
 
 - [x] `src/society/bus.mjs` — chat routing: named agents addressed, unaddressed
@@ -149,3 +170,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
 |            | terse wakes, in-character speech)                                |
 | 2026-10-05 | Creative mode for now: gamemode=creative, spawn-enforced,        |
 |            | creative-inventory fallback for block placement                  |
+| 2026-10-05 | Both keys verified live (OpenRouter in-character reply; JEV      |
+|            | mood choice). Two-tier mind adopted: JEV + deterministic         |
+|            | executor handle routine wakes; the reasoning model is called     |
+|            | only for conversation, conflicts, and disputes                   |
