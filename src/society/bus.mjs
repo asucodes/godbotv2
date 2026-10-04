@@ -5,12 +5,14 @@
 // All agents also passively see chat in their senses — the bus decides who is
 // *addressed* by it.
 import { CONFIG } from '../config.mjs'
+import { isServerNoise } from '../world/bot.mjs'
 
 export function createBus({ agents }) {
   const names = agents.map((a) => a.name)
   let duty = 0 // rotating duty officer for unaddressed lines — bounds model calls
 
   function route(username, message) {
+    if (isServerNoise(message)) return { deliveredTo: [] } // command feedback is not conversation
     const lower = message.toLowerCase()
     const named = names.filter((n) => lower.includes(n.toLowerCase()))
     if (username === CONFIG.world.humanName) {

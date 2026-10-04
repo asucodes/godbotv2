@@ -16,6 +16,7 @@ try {
     system: 'You are a Minecraft villager named Mason, a gruff stonemason. Answer with one short spoken line, in character, no markdown.',
     messages: [{ role: 'user', content: 'A traveler asks: is the village safe at night?' }],
     maxOutputTokens: 100,
+    providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
   })
   console.log('  OK — Mason says: ' + JSON.stringify(r.text))
 } catch (e) {

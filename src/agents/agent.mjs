@@ -9,7 +9,7 @@
 //   plan, a dispute. Its history is its own; free will lives at both tiers.
 import { generateText, stepCountIs } from 'ai'
 import { CONFIG } from '../config.mjs'
-import { model, isQuotaError } from '../llm/provider.mjs'
+import { model, cooldownFor, geminiCallOptions } from '../llm/provider.mjs'
 import { jevAsk } from '../llm/jev.mjs'
 import { createTools } from './tools.mjs'
 import { createExecutor } from './executor.mjs'
@@ -70,11 +70,13 @@ export function createAgent({ persona, body, claims, memory, resolveDispute }) {
         temperature: CONFIG.llm.temperature,
         maxOutputTokens: CONFIG.llm.maxOutputTokens,
         stopWhen: stepCountIs(CONFIG.llm.maxToolSteps),
+        providerOptions: geminiCallOptions,
       })
     } catch (e) {
-      if (isQuotaError(e)) {
-        llmBlockedUntil = Date.now() + CONFIG.llm.errorCooldownMs
-        log('system', 'llm-quota-pause', { user: name, cooldownMs: CONFIG.llm.errorCooldownMs, error: e.message.slice(0, 120) })
+      const cooldown = cooldownFor(e)
+      if (cooldown) {
+        llmBlockedUntil = Date.now() + cooldown
+        log('system', 'llm-pause', { user: name, cooldownMs: cooldown, error: e.message.slice(0, 120) })
       } else {
         log('system', 'llm-error', { user: name, error: e.message.slice(0, 160) })
       }
@@ -174,6 +176,7 @@ export function createAgent({ persona, body, claims, memory, resolveDispute }) {
         system: 'Summarize what happened to this Minecraft villager in first person, as durable memories ("I built...", "Mason owes me...", "I fell in the ravine..."). 120 words max. Keep names, promises, grudges, unfinished projects.',
         messages: [{ role: 'user', content: `Existing memories:\n${memory.rollup || '(none)'}\n\nNew events:\n${transcript}` }],
         maxOutputTokens: 300,
+        providerOptions: geminiCallOptions,
       })
       memory.setRollup(r.text.trim())
       log('agent', 'memory-rollup', { user: name, pruned: old.length })

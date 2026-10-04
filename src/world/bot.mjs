@@ -8,6 +8,11 @@ import pathfinderPkg from 'mineflayer-pathfinder'
 
 const { pathfinder, Movements, goals } = pathfinderPkg
 const { GoalNear } = goals
+
+// Paper echoes command feedback into chat (and TLauncher appends ']'). These
+// are not conversation — reacting to them wastes reasoning-model calls.
+const SERVER_NOISE = /^(Teleported |Set the world spawn|Killed |Gamemode|Given |Placed |Filled |Summoned |Weather |Time set|Effect |Enchanting|Difficulty |Saved the game|Set own gamemode)/
+export function isServerNoise(text) { return SERVER_NOISE.test(text) }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const AIR = new Set(['air', 'cave_air', 'void_air'])
 
@@ -21,9 +26,6 @@ export function createBody({ username, host, port, version, onEvent = () => {}, 
     heardChat: [], // [{ from, text, at }] — fed to senses
   }
   const opts = { host, port, username, version, auth: 'offline' }
-  // Paper echoes command feedback into chat (and TLauncher appends ']'). These
-  // are not conversation — reacting to them wastes reasoning-model calls.
-  const SERVER_NOISE = /^(Teleported |Set the world spawn|Killed |Gamemode|Given |Placed |Filled |Summoned |Weather |Time set|Effect |Enchanting|Difficulty |Saved the game|Set own gamemode)/
 
   function bind(bot) {
     bot.loadPlugin(pathfinder)

@@ -16,7 +16,7 @@
   "dependencies": {
     "@ai-sdk/google": "^4.0.87",
     "@ai-sdk/openai-compatible": "^1.0.0",
-    "ai": "^5.0.0",
+    "ai": "^7.0.127",
     "express": "^5.2.1",
     "mineflayer": "^4.39.0",
     "mineflayer-pathfinder": "^2.4.5",

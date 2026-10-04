@@ -31,14 +31,19 @@ export const CONFIG = {
   },
 
   llm: {
-    // The one mind-model. Gemini 2.5 Flash: fast, tool-calling, generous
-    // free-tier limits. Per-agent overrides go on the persona.
-    decisionModel: 'gemini-2.5-flash',
+    // The one mind-model. Flash-Lite: tool-calling verified, and the largest
+    // free-tier daily bucket (Gemini free tier is per-model per-day: 3.8-flash
+    // is only ~20/day; flash-lite is the generous one). Swap the id freely —
+    // verified working: gemini-3.7-flash, gemini-3.5-flash, gemini-3.1-flash-lite,
+    // gemini-flash-lite-latest. 2.5-flash and 2.5-flash-lite are retired for
+    // new accounts.
+    decisionModel: 'gemini-3.1-flash-lite',
     maxOutputTokens: 2048,
     temperature: 0.8,
     maxToolSteps: 14,           // steps per wake before the model must yield
     maxHistoryMessages: 80,     // raw turns kept before a memory roll-up prunes
     errorCooldownMs: 300000,    // after a quota/rate error, minds pause 5 min
+    transientCooldownMs: 60000, // after a demand spike / 503, pause 1 min
 
     // JEV (Experiential Labs) — bounded arbiter for quick binary choices, used
     // where a full reasoning wake would be waste. Client: src/llm/jev.mjs

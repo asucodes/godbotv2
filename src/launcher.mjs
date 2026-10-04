@@ -84,6 +84,15 @@ const TEMURIN = {
 }
 
 async function ensureJava() {
+  // reuse a previously downloaded JRE before touching PATH or the network
+  if (fs.existsSync(RUNTIME)) {
+    const cached = fs.readdirSync(RUNTIME).find((d) => /^jdk-21/.test(d) && fs.existsSync(path.join(RUNTIME, d, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')))
+    if (cached) {
+      const javaPath = path.join(RUNTIME, cached, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
+      say('java 21 (runtime folder): ' + javaPath)
+      return javaPath
+    }
+  }
   const java = findJava21()
   if (java) { say('java 21: ' + java); return java }
   say('no Java 21 on PATH — downloading Temurin JRE...')
