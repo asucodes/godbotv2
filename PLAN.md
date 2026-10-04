@@ -89,13 +89,38 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] Acceptance: full demo run — fresh clone → `npm start` → join world →
       talk, order a build, witness a dispute → all visible on dashboard
 
+## Phase 4.5 — Community features (adopted 2026-10-05)
+
+- [ ] **Session persistence & crash recovery** — agents auto-reconnect after a
+      disconnect; on restart each resumes from its saved memory roll-up, so the
+      village keeps living across restarts
+- [ ] **Moderator precedent (case law)** — every ruling is written to a
+      precedent ledger that the moderator and agents can cite; village law
+      emerges from play
+- [ ] **Signs as world-persistent communication** — agents write real MC signs
+      (claim markers, offers, memorials); visible to players, readable by agents
+- [ ] **Live world map on the dashboard** — top-down render of claims (colored
+      plots), build sites, and agent positions over SSE
+- [ ] **Chronicler agent** — a seventh mind that watches the decision log and
+      writes the village chronicle (markdown + dashboard feed)
+- [ ] **Gossip with distortion** — relayed chat is paraphrased naturally by the
+      receiving agent's model; rumors degrade in transit
+- [ ] **Contracts between agents** — "planks for cobble" promise ledger,
+      enforced socially and by the moderator
+
 ## Backlog (post-2.0)
 
-- [ ] Chests and item exchange between villagers (simple economy)
+- [ ] Night danger: mob defense makes walls/torches/shelter matter (declined
+      for 2.0, revisit)
 - [ ] Group commissions: several villagers split one large build
 - [ ] Per-agent voice/model differentiation (cheap chat lane per persona)
-- [ ] World persistence audit: village state survives server restarts
-- [ ] Unit tests for claims ledger, plan validator, memory rollup
+- [ ] Two villages: trade, rivalry, contested borders
+- [ ] Reputation system: agents that ignore rulings become known for it
+- [ ] Village meetings: convene tool, moderator chairs open debate
+- [ ] Replay system: time-scrubber over the decision log + map
+- [ ] Automated eval harness: scripted headless scenarios (land conflict,
+      griefing bot, resource shortage)
+- [ ] Unit tests for plan validator, memory rollup
 
 ---
 
